@@ -3,5 +3,9 @@
 version = 4
 
 [[package]]
+name = "concurrency-rs"
+version = "0.1.0"
+
+[[package]]
 name = "malloc-rs"
 version = "0.1.0"

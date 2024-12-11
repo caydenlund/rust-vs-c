@@ -1,16 +1,10 @@
+use std::env;
 use std::time::{Duration, Instant};
 
 const MIN_ALLOC_SIZE: u64 = 8;
 const MAX_ALLOC_SIZE: u64 = 1024;
 
-#[derive(Debug, Clone)]
-struct MemoryBenchmarkResult {
-    total_alloc_time: Duration,
-    total_dealloc_time: Duration,
-    total_memory_allocated: usize,
-}
-
-fn rand(seed: u64) -> u64 {
+fn rand_next(seed: u64) -> u64 {
     const MODULUS: u64 = 1 << 31;
     const MULTIPLIER: u64 = 1103515245;
     const INCREMENT: u64 = 12345;
@@ -18,49 +12,68 @@ fn rand(seed: u64) -> u64 {
     (seed * MULTIPLIER + INCREMENT) % MODULUS
 }
 
-fn benchmark_random_allocs(alloc_count: usize) -> MemoryBenchmarkResult {
-    let mut allocations: Vec<Vec<u8>> = Vec::with_capacity(alloc_count);
-    let mut total_memory_allocated = 0;
-
-    let mut size = rand(0);
-    let allocation_start = Instant::now();
-    for _ in 0..alloc_count {
-        size = MIN_ALLOC_SIZE + rand(size) % (MAX_ALLOC_SIZE - MIN_ALLOC_SIZE);
-        total_memory_allocated += size as usize;
-        allocations.push(vec![0; size as usize]);
-    }
-    let total_alloc_time = allocation_start.elapsed();
-
-    let deallocation_start = Instant::now();
-    drop(allocations);
-    let total_dealloc_time = deallocation_start.elapsed();
-
-    MemoryBenchmarkResult {
-        total_alloc_time,
-        total_dealloc_time,
-        total_memory_allocated,
-    }
+fn print_usage(program: &str) {
+    eprintln!("Usage: `{} -n <num_allocs> -r <num_repetitions>`", program);
 }
 
 fn main() {
-    let mut args = std::env::args();
-    args.next();
-    let alloc_count = args.next().unwrap().parse().unwrap();
+    let args: Vec<String> = env::args().collect();
+    let mut num_allocs = 0;
+    let mut num_repetitions = 0;
 
-    let MemoryBenchmarkResult {
-        total_alloc_time,
-        total_dealloc_time,
-        total_memory_allocated,
-    } = benchmark_random_allocs(alloc_count);
+    let mut arg_iter = args.iter().skip(1);
+    while let Some(arg) = arg_iter.next() {
+        match arg.as_str() {
+            "-n" => {
+                if let Some(value) = arg_iter.next() {
+                    num_allocs = value.parse().unwrap_or(0);
+                } else {
+                    print_usage(&args[0]);
+                    return;
+                }
+            }
+            "-r" => {
+                if let Some(value) = arg_iter.next() {
+                    num_repetitions = value.parse().unwrap_or(0);
+                } else {
+                    print_usage(&args[0]);
+                    return;
+                }
+            }
+            _ => {
+                print_usage(&args[0]);
+                return;
+            }
+        }
+    }
+
+    if num_allocs == 0 || num_repetitions == 0 {
+        print_usage(&args[0]);
+        return;
+    }
+
+    let mut total_alloc_time = 0;
+    let mut total_free_time = 0;
+
+    let mut size = 0;
+    for _ in 0..num_repetitions {
+        let alloc_start = Instant::now();
+        let mut allocations = Vec::with_capacity(num_allocs as usize);
+        for _ in 0..num_allocs {
+            size = MIN_ALLOC_SIZE + (rand_next(size) % (MAX_ALLOC_SIZE - MIN_ALLOC_SIZE));
+
+            allocations.push(vec![0; size as usize]);
+        }
+        total_alloc_time += alloc_start.elapsed().as_nanos();
+
+        let free_start = Instant::now();
+        drop(allocations);
+        total_free_time += free_start.elapsed().as_nanos();
+    }
 
     println!(
-        r"Total allocation time:   {} ns
-Total deallocation time: {} ns
-Total memory allocated:  {} B
-Total allocations:       {}",
-        total_alloc_time.as_nanos(),
-        total_dealloc_time.as_nanos(),
-        total_memory_allocated,
-        alloc_count,
-    )
+        "{}\t{}",
+        total_alloc_time / num_repetitions,
+        total_free_time / num_repetitions
+    );
 }
