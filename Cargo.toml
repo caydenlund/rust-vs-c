@@ -1,0 +1,10 @@
+[workspace]
+resolver = "2"
+members = ["malloc-rs"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Cayden Lund <cayden.lund@utah.edu>"]
+description = "Analysis of Performance Differences Between C and Rust"
+license = "MIT"
