@@ -4,52 +4,81 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "args.h"
-
 // Structure to pass arguments to each thread
 typedef struct {
-    uint64_t start;
-    uint64_t end;
-    uint64_t partial_sum;
+    uint64_t id;
+    uint64_t num_threads;
+    uint64_t dim;
+    float* mat_a;
+    float* mat_b;
+    float* mat_c;
 } ThreadData;
 
-// Function executed by each thread
-void* thread_sum(void* arg) {
+uint64_t time_diff_ns(struct timespec start, struct timespec end) {
+    return (end.tv_sec - start.tv_sec) * 1000000000ULL
+         + (end.tv_nsec - start.tv_nsec);
+}
+
+void* mat_mul_thread(void* arg) {
     ThreadData* data = (ThreadData*)arg;
-    data->partial_sum = 0;
-    for (uint64_t i = data->start; i <= data->end; i++) {
-        data->partial_sum += i;
+
+    uint64_t dim = data->dim;
+    uint64_t chunk_size = dim / data->num_threads;
+    uint64_t start_row = data->id * chunk_size;
+    uint64_t end_row = (data->id == data->num_threads - 1)
+                             ? dim
+                             : start_row + chunk_size;
+
+    for (uint64_t i = start_row; i < end_row; ++i) {
+        for (uint64_t j = 0; j < dim; ++j) {
+            float sum = 0.0F;
+            for (uint64_t k = 0; k < dim; ++k) {
+                sum += data->mat_a[i * dim + k] + data->mat_b[k * dim + j];
+            }
+            data->mat_c[i * dim + j] = sum;
+        }
     }
+
     return NULL;
 }
 
 void print_usage(char* prgm) {
-    printf("Usage: `%s -t <num_threads> -n <number> -r <num_repetitions>`",
+    printf("Usage: `%s -t <num_threads> -n <mat_dim> -r <num_repetitions>`\n",
            prgm);
 }
 
 int main(int argc, char* argv[]) {
     uint64_t num_threads = 0;
-    ArgParser num_threads_parser = arg_parser("-t", argc, argv, &num_threads,
-                                              print_usage);
-    uint64_t number = 0;
-    ArgParser number_parser = arg_parser("-n", argc, argv, &number,
-                                         print_usage);
+    uint64_t mat_dim = 0;
     uint64_t num_repetitions = 0;
-    ArgParser num_repetitions_parser = arg_parser(
-            "-r", argc, argv, &num_repetitions, print_usage);
 
     for (int argi = 1; argi < argc; ++argi) {
-        parse_arg(num_threads_parser, &argi);
-        parse_arg(number_parser, &argi);
-        parse_arg(num_repetitions_parser, &argi);
+        if (strcmp(argv[argi], "-t") == 0) {
+            if (++argi == argc) {
+                print_usage(argv[0]);
+                return 1;
+            }
+            num_threads = strtoul(argv[argi], NULL, 0);
+        } else if (strcmp(argv[argi], "-n") == 0) {
+            if (++argi == argc) {
+                print_usage(argv[0]);
+                return 1;
+            }
+            mat_dim = strtoul(argv[argi], NULL, 0);
+        } else if (strcmp(argv[argi], "-r") == 0) {
+            if (++argi == argc) {
+                print_usage(argv[0]);
+                return 1;
+            }
+            num_repetitions = strtoul(argv[argi], NULL, 0);
+        }
     }
 
     if (num_threads == 0) {
         print_usage(argv[0]);
         return 1;
     }
-    if (number == 0) {
+    if (mat_dim == 0) {
         print_usage(argv[0]);
         return 1;
     }
@@ -58,38 +87,53 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    float* mat_a = malloc(mat_dim * mat_dim * sizeof(float));
+    float* mat_b = malloc(mat_dim * mat_dim * sizeof(float));
+    float* mat_c = malloc(mat_dim * mat_dim * sizeof(float));
+
+    for (size_t ind = 0; ind < mat_dim * mat_dim; ++ind) {
+        mat_a[ind] = 1.0F / (float)((ind + 1) * (ind + 2));
+        mat_a[ind] = (float)(ind + 3);
+    }
+
+    ThreadData thread_data[num_threads];
+    {
+        ThreadData tmp = {
+                .id = 0,
+                .num_threads = num_threads,
+                .dim = mat_dim,
+                .mat_a = mat_a,
+                .mat_b = mat_b,
+                .mat_c = mat_c,
+        };
+        for (uint64_t id = 0; id < num_threads; ++id) {
+            tmp.id = id;
+            thread_data[id] = tmp;
+        }
+    }
+
+    struct timespec time_start;
+    struct timespec time_end;
+    clock_gettime(CLOCK_MONOTONIC, &time_start);
+
     for (int repetition = 0; repetition < num_repetitions; ++repetition) {
         pthread_t threads[num_threads];
-        ThreadData thread_data[num_threads];
 
-        uint64_t numbers_per_thread = number / num_threads;
-        uint64_t remainder = number % num_threads;
-
-        uint64_t current_start = 1;
-        for (int i = 0; i < num_threads; ++i) {
-            thread_data[i].start = current_start;
-            thread_data[i].end = current_start + numbers_per_thread - 1;
-            if (i < remainder) { thread_data[i].end += 1; }
-            current_start = thread_data[i].end + 1;
-
-            if (pthread_create(&threads[i], NULL, thread_sum, &thread_data[i])
-                != 0) {
-                perror("pthread_create");
-                return 1;
-            }
+        for (int id = 0; id < num_threads; ++id) {
+            pthread_create(&threads[id], NULL, mat_mul_thread,
+                           &thread_data[id]);
         }
 
-        uint64_t total_sum = 0;
-        for (int i = 0; i < num_threads; ++i) {
-            if (pthread_join(threads[i], NULL) != 0) {
-                perror("pthread_join");
-                return 1;
-            }
-            total_sum += thread_data[i].partial_sum;
+        for (int id = 0; id < num_threads; ++id) {
+            pthread_join(threads[id], NULL);
         }
-
-        // printf("Total sum from 1 to %lu: %lu\n", number, total_sum);
     }
+
+    clock_gettime(CLOCK_MONOTONIC, &time_end);
+    uint64_t total_time = time_diff_ns(time_start, time_end);
+    uint64_t time_per_iter = total_time / num_repetitions;
+
+    printf("%lu\n", time_per_iter);
 
     return 0;
 }
