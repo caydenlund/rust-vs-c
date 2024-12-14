@@ -133,7 +133,7 @@ int main(int argc, char* argv[]) {
     uint64_t total_time = time_diff_ns(time_start, time_end);
     uint64_t time_per_iter = total_time / num_repetitions;
 
-    printf("%lu\n", time_per_iter);
+    printf("%lu\t%lu\t%lu\n", num_threads, mat_dim, time_per_iter);
 
     return 0;
 }

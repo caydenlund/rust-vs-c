@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
         total_free_time += time_diff_ns(free_start, free_end);
     }
 
-    printf("%lu\t%lu\n", total_alloc_time / num_repetitions,
+    printf("%lu\t%lu\t%lu\n", num_allocs, total_alloc_time / num_repetitions,
            total_free_time / num_repetitions);
 
     return 0;

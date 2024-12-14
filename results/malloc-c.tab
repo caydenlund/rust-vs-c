@@ -1,0 +1,5 @@
+Number of allocations	Malloc runtime (ns)	Free runtime (ns)
+10	282	149
+100	2087	1296
+1000	187746	49918
+10000	2965090	1407816

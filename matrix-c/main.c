@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
         free(mat_c);
     }
 
-    printf("%lu\n", total_time / num_repetitions);
+    printf("%lu\t%lu\n", mat_dim, total_time / num_repetitions);
 
     return 0;
 }

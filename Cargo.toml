@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["concurrency-rs", "malloc-rs", "matrix-rs"]
+members = ["concurrency-rs", "malloc-rs", "matrix-rs", "sort-rs"]
 
 [workspace.package]
 version = "0.1.0"

@@ -72,7 +72,8 @@ fn main() {
     }
 
     println!(
-        "{}\t{}",
+        "{}\t{}\t{}",
+        num_allocs,
         total_alloc_time / num_repetitions,
         total_free_time / num_repetitions
     );

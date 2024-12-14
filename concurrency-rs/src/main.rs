@@ -126,7 +126,7 @@ fn main() -> Result<(), ()> {
     let total_time = start_time.elapsed().as_nanos();
     let time_per_iter = total_time / num_repetitions;
 
-    println!("{}", time_per_iter);
+    println!("{}\t{}\t{}", num_threads, mat_dim, time_per_iter);
 
     Ok(())
 }

@@ -87,5 +87,5 @@ fn main() {
         total_time += time_diff_ns(start, end);
     }
 
-    println!("{}", total_time / num_repetitions);
+    println!("{}\t{}", mat_dim, total_time / num_repetitions);
 }

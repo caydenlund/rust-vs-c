@@ -1,0 +1,5 @@
+Array length	Insertion sort runtime (ns)	Merge sort runtime (ns)	Radix sort runtime (ns)	Validation runtime (ns)
+10	116	490	1478	16
+100	1688	5516	3155	55
+1000	106577	68256	21687	452
+10000	9510456	813836	221366	4489
