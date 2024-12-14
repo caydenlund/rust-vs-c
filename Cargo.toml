@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = [ "concurrency-rs","malloc-rs"]
+members = ["concurrency-rs", "malloc-rs", "matrix-rs"]
 
 [workspace.package]
 version = "0.1.0"
@@ -8,3 +8,7 @@ edition = "2021"
 authors = ["Cayden Lund <cayden.lund@utah.edu>"]
 description = "Analysis of Performance Differences Between C and Rust"
 license = "MIT"
+
+[profile.release]
+strip = true
+lto = true
